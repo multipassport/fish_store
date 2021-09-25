@@ -3,7 +3,7 @@ import logging
 import redis
 
 from dotenv import load_dotenv
-from telegram import ReplyKeyboardMarkup, Update
+from telegram import ReplyKeyboardMarkup, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -11,6 +11,7 @@ from telegram.ext import (
     Filters,
     ConversationHandler,
     CallbackContext,
+    CallbackQueryHandler
 )
 
 logging.basicConfig(
@@ -25,10 +26,25 @@ _database = None
 
 
 def start(update, context):
+    # quiz_keyboard = [['option1', 'option2'],
+    #                  ['option3']]
+    keyboard = [[InlineKeyboardButton('Option1', callback_data='1'),
+                 InlineKeyboardButton('Option2', callback_data='2')],
+
+                [InlineKeyboardButton('Option3', callback_data='3')]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(
-        'Qq'
+        'Choose', reply_markup=reply_markup
     )
     return ECHO
+
+
+def button(update, context):
+    query = update.callback_query
+    query.answer()
+
+    query.edit_message_text(text=f'Selected option: {query.data}')
 
 
 def echo(update, context):
@@ -69,7 +85,8 @@ def run_bot():
         entry_points=[CommandHandler('start', start)],
         states={
             ECHO: [
-                MessageHandler(Filters.text, echo),
+                # MessageHandler(Filters.text, echo),
+                CallbackQueryHandler(button)
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],
