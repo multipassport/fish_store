@@ -3,6 +3,7 @@ import logging
 import redis
 
 from dotenv import load_dotenv
+from moltin import access_token, get_products_list
 from telegram import ReplyKeyboardMarkup, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
@@ -26,13 +27,12 @@ _database = None
 
 
 def start(update, context):
-    # quiz_keyboard = [['option1', 'option2'],
-    #                  ['option3']]
-    keyboard = [[InlineKeyboardButton('Option1', callback_data='1'),
-                 InlineKeyboardButton('Option2', callback_data='2')],
-
-                [InlineKeyboardButton('Option3', callback_data='3')]]
-
+    products = get_products_list(access_token)
+    keyboard_buttons = [(product['name'], product['id']) for product in products]
+    keyboard = [
+        [InlineKeyboardButton(name, callback_data=product_id)]
+        for name, product_id in keyboard_buttons
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(
         'Choose', reply_markup=reply_markup
