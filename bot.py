@@ -3,7 +3,7 @@ import logging
 import redis
 
 from dotenv import load_dotenv
-from moltin import access_token, get_products_list
+from moltin import access_token, get_products_list, fetch_product_description
 from telegram import ReplyKeyboardMarkup, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
@@ -21,7 +21,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-START, ECHO = range(2)
+START, HANDLE_MENU = range(2)
 
 _database = None
 
@@ -37,21 +37,23 @@ def start(update, context):
     update.message.reply_text(
         'Choose', reply_markup=reply_markup
     )
-    return ECHO
+    return HANDLE_MENU
 
 
 def button(update, context):
     query = update.callback_query
     query.answer()
+    message = fetch_product_description(access_token, query.data)
 
-    query.edit_message_text(text=f'Selected option: {query.data}')
+    query.edit_message_text(text=message)
+    return START
 
 
-def echo(update, context):
-    update.message.reply_text(
-        update.message.text
-    )
-    return ECHO
+# def echo(update, context):
+#     update.message.reply_text(
+#         update.message.text
+#     )
+#     return ECHO
 
 
 def get_database_connection():
@@ -84,7 +86,7 @@ def run_bot():
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            ECHO: [
+            HANDLE_MENU: [
                 # MessageHandler(Filters.text, echo),
                 CallbackQueryHandler(button)
             ],
