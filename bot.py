@@ -3,8 +3,14 @@ import logging
 import redis
 
 from dotenv import load_dotenv
-from moltin import access_token, get_products_list, fetch_product_description
-from telegram import ReplyKeyboardMarkup, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from moltin import (
+    get_bearer_token,
+    get_products_list,
+    fetch_product_description,
+    get_image_url,
+    get_product,
+)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -12,7 +18,7 @@ from telegram.ext import (
     Filters,
     ConversationHandler,
     CallbackContext,
-    CallbackQueryHandler
+    CallbackQueryHandler,
 )
 
 logging.basicConfig(
@@ -27,6 +33,8 @@ _database = None
 
 
 def start(update, context):
+    access_token = context.bot_data['access_token']
+
     products = get_products_list(access_token)
     keyboard_buttons = [(product['name'], product['id']) for product in products]
     keyboard = [
@@ -37,23 +45,21 @@ def start(update, context):
     update.message.reply_text(
         'Choose', reply_markup=reply_markup
     )
+    context.chat_data['message_to_delete'] = update['message']['message_id']
     return HANDLE_MENU
 
 
 def button(update, context):
+    access_token = context.bot_data['access_token']
     query = update.callback_query
     query.answer()
-    message = fetch_product_description(access_token, query.data)
-
-    query.edit_message_text(text=message)
+    product = get_product(access_token, query.data)
+    text = fetch_product_description(access_token, product)
+    photo_id = product['relationships']['main_image']['data']['id']
+    photo = get_image_url(access_token, photo_id)
+    query.message.reply_photo(photo, caption=text)
+    query.message.delete()
     return START
-
-
-# def echo(update, context):
-#     update.message.reply_text(
-#         update.message.text
-#     )
-#     return ECHO
 
 
 def get_database_connection():
@@ -77,11 +83,18 @@ def error(update, context):
 
 def run_bot():
     load_dotenv()
+
+    client_id = os.getenv('CLIENT_ID')
+    client_secret = os.getenv('CLIENT_SECRET')
     tg_token = os.getenv('TG_BOT_TOKEN')
+
     database = get_database_connection()
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
+
+    context = CallbackContext(dispatcher)
+    context.bot_data['access_token'] = get_bearer_token(client_id, client_secret)
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
