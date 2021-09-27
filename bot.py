@@ -27,12 +27,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-START, HANDLE_MENU = range(2)
+HANDLE_MENU, HANDLE_DESCRIPTION = range(2)
 
 _database = None
 
 
-def start(update, context):
+def get_reply_markup(context):
     access_token = context.bot_data['access_token']
 
     products = get_products_list(access_token)
@@ -41,25 +41,40 @@ def start(update, context):
         [InlineKeyboardButton(name, callback_data=product_id)]
         for name, product_id in keyboard_buttons
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        'Choose', reply_markup=reply_markup
-    )
-    context.chat_data['message_to_delete'] = update['message']['message_id']
+    return InlineKeyboardMarkup(keyboard)
+
+
+def start(update, context):
+    reply_markup = get_reply_markup(context)
+    update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
-def button(update, context):
+def press_button(update, context):
     access_token = context.bot_data['access_token']
+
     query = update.callback_query
     query.answer()
+
     product = get_product(access_token, query.data)
     text = fetch_product_description(access_token, product)
+
     photo_id = product['relationships']['main_image']['data']['id']
     photo = get_image_url(access_token, photo_id)
-    query.message.reply_photo(photo, caption=text)
+
+    keyboard = [[InlineKeyboardButton('Назад', callback_data=product['id'])]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    query.message.reply_photo(photo, caption=text, reply_markup=reply_markup)
     query.message.delete()
-    return START
+    return HANDLE_DESCRIPTION
+
+
+def return_to_menu(update, context):
+    reply_markup = get_reply_markup(context)
+    query = update.callback_query
+    query.message.reply_text('Choose', reply_markup=reply_markup)    
+    return HANDLE_MENU
 
 
 def get_database_connection():
@@ -100,8 +115,10 @@ def run_bot():
         entry_points=[CommandHandler('start', start)],
         states={
             HANDLE_MENU: [
-                # MessageHandler(Filters.text, echo),
-                CallbackQueryHandler(button)
+                CallbackQueryHandler(press_button),
+            ],
+            HANDLE_DESCRIPTION: [
+                CallbackQueryHandler(return_to_menu),
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],
