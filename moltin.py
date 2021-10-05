@@ -153,6 +153,16 @@ def get_image_url(access_token, image_id):
     return response.json()['data']['link']['href']
 
 
+def delete_product_from_cart(access_token, chat_id, product_id):
+    url = f'https://api.moltin.com/v2/carts/{chat_id}/items/{product_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.delete(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
 if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')

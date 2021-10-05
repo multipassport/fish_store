@@ -40,10 +40,10 @@ def get_reply_markup_for_products(context):
     access_token = context.bot_data['access_token']
 
     products = get_products_list(access_token)
-    keyboard_buttons = [(product['name'], product['id']) for product in products]
+    products_with_ids = [(product['name'], product['id']) for product in products]
     keyboard = [
         [InlineKeyboardButton(name, callback_data=product_id)]
-        for name, product_id in keyboard_buttons
+        for name, product_id in products_with_ids
     ]
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='cart')])
     return InlineKeyboardMarkup(keyboard)
@@ -62,9 +62,12 @@ def get_reply_markup_for_quantity():
 
 
 def get_reply_markup_for_cart(context):
-    keyboard = [[
-        InlineKeyboardButton('В меню', callback_data='back'),
-    ]]
+    products_with_ids = context.chat_data['products_with_ids']
+    keyboard = [
+        [InlineKeyboardButton(f'Удалить {name} из корзины', callback_data=product_id)]
+        for name, product_id in products_with_ids
+    ]
+    keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -123,11 +126,17 @@ def show_cart(update, context):
     response = get_cart_items(access_token, chat_id)
 
     message = fetch_cart_items(response)
+    context.chat_data['products_with_ids'] = [(fish['name'], fish['id']) for fish in response['data']]
+
     reply_markup = get_reply_markup_for_cart(context)
     query.message.reply_text(message, reply_markup=reply_markup)
     query.message.delete()
 
     return HANDLE_CART
+
+
+def delete_from_cart(update, context):
+    query = update.callback_query
 
 
 def get_database_connection():
