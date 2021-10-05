@@ -113,7 +113,7 @@ def send_callback_data_to_cart(update, context):
     product_id = context.chat_data['product_id']
     access_token = context.bot_data['access_token']
 
-    weight = query.data
+    weight = int(query.data)
     add_product_to_cart(access_token, product_id, weight, chat_id)
     context.chat_data.pop('product_id')
 
@@ -147,7 +147,7 @@ def delete_from_cart(update, context):
 
     delete_product_from_cart(access_token, chat_id, product_id)
 
-    return HANDLE_CART
+    show_cart(update, context)
 
 
 def get_database_connection():
