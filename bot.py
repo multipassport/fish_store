@@ -10,6 +10,9 @@ from moltin import (
     get_image_url,
     get_product,
     add_product_to_cart,
+    get_cart,
+    get_cart_items,
+    fetch_cart_items,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -28,7 +31,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-HANDLE_MENU, HANDLE_DESCRIPTION = range(2)
+HANDLE_MENU, HANDLE_DESCRIPTION, HANDLE_CART = range(3)
 
 _database = None
 
@@ -42,17 +45,26 @@ def get_reply_markup_for_products(context):
         [InlineKeyboardButton(name, callback_data=product_id)]
         for name, product_id in keyboard_buttons
     ]
+    keyboard.append([InlineKeyboardButton('Корзина', callback_data='cart')])
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_reply_markup_for_quantity(context):
+def get_reply_markup_for_quantity():
     keyboard = [[
         InlineKeyboardButton('1 kg', callback_data=1),
         InlineKeyboardButton('5 kg', callback_data=5),
         InlineKeyboardButton('10 kg', callback_data=10),
     ],
+        [InlineKeyboardButton('Корзина', callback_data='cart')],
         [InlineKeyboardButton('Назад', callback_data='back')],
     ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_reply_markup_for_cart(context):
+    keyboard = [[
+        InlineKeyboardButton('В меню', callback_data='back'),
+    ]]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -69,12 +81,12 @@ def press_button(update, context):
     query.answer()
 
     product = get_product(access_token, query.data)
-    text = fetch_product_description(access_token, product)
+    text = fetch_product_description(product)
 
     photo_id = product['relationships']['main_image']['data']['id']
     photo = get_image_url(access_token, photo_id)
 
-    reply_markup = get_reply_markup_for_quantity(context)
+    reply_markup = get_reply_markup_for_quantity()
 
     context.chat_data['product_id'] = product['id']
 
@@ -87,17 +99,35 @@ def return_to_menu(update, context):
     reply_markup = get_reply_markup_for_products(context)
     query = update.callback_query
     query.message.reply_text('Choose', reply_markup=reply_markup)
+    query.message.delete()
     return HANDLE_MENU
 
 
 def send_callback_data_to_cart(update, context):
+    query = update.callback_query
+    chat_id = query.from_user.id
+
     product_id = context.chat_data['product_id']
     access_token = context.bot_data['access_token']
 
-    query = update.callback_query
-    weight = int(query.data)
-    add_product_to_cart(access_token, product_id, weight)
+    weight = query.data
+    add_product_to_cart(access_token, product_id, weight, chat_id)
     return HANDLE_DESCRIPTION
+
+
+def show_cart(update, context):
+    query = update.callback_query
+    chat_id = query.from_user.id
+
+    access_token = context.bot_data['access_token']
+    response = get_cart_items(access_token, chat_id)
+
+    message = fetch_cart_items(response)
+    reply_markup = get_reply_markup_for_cart(context)
+    query.message.reply_text(message, reply_markup=reply_markup)
+    query.message.delete()
+
+    return HANDLE_CART
 
 
 def get_database_connection():
@@ -138,11 +168,16 @@ def run_bot():
         entry_points=[CommandHandler('start', start)],
         states={
             HANDLE_MENU: [
+                CallbackQueryHandler(show_cart, pattern='cart'),
                 CallbackQueryHandler(press_button),
             ],
             HANDLE_DESCRIPTION: [
                 CallbackQueryHandler(return_to_menu, pattern='back'),
+                CallbackQueryHandler(show_cart, pattern='cart'),
                 CallbackQueryHandler(send_callback_data_to_cart),
+            ],
+            HANDLE_CART: [
+                CallbackQueryHandler(return_to_menu, pattern='back'),
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],

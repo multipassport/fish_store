@@ -27,8 +27,8 @@ def get_products_list(access_token):
     return response.json()['data']
 
 
-def add_product_to_cart(access_token, product_id, quantity):
-    url = 'https://api.moltin.com/v2/carts/mltpass/items'
+def add_product_to_cart(access_token, product_id, quantity, chat_id):
+    url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json',
@@ -45,8 +45,18 @@ def add_product_to_cart(access_token, product_id, quantity):
     return response.json()
 
 
-def get_cart(access_token):
-    url = 'https://api.moltin.com/v2/carts/mltpass'
+def get_cart(access_token, chat_id):
+    url = f'https://api.moltin.com/v2/carts/{chat_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_cart_items(access_token, chat_id):
+    url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
     }
@@ -66,12 +76,28 @@ def get_product(access_token, product_id):
     return response.json()['data']
 
 
-def fetch_product_description(access_token, response):
+def fetch_product_description(response):
     name = response['name']
     price = f'{response["meta"]["display_price"]["with_tax"]["formatted"]} per kg'
     stock = f'{response["meta"]["stock"]["level"]}kg on stock'
     description = response['description']
     return '\n'.join((name, price, stock, description))
+
+
+def fetch_cart_items(response):
+    message = ''
+    for fish in response['data']:
+        name = fish['name']
+        description = fish['description']
+        quantity = fish['quantity']
+        price_per_unit =f'{fish["meta"]["display_price"]["with_tax"]["unit"]["formatted"]} per kg'
+        position_price = fish['meta']['display_price']['with_tax']['value']['formatted']
+        position_quantity_and_price = f'{quantity}kg in cart for {position_price}'
+        position = '\n'.join((name, description, price_per_unit, position_quantity_and_price))
+        message += f'{position}\n\n'
+    total = response['meta']['display_price']['with_tax']['formatted']
+    message += f'Total: {total}'
+    return message
 
 
 def create_file(access_token, filepath):
