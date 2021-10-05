@@ -32,7 +32,7 @@ HANDLE_MENU, HANDLE_DESCRIPTION = range(2)
 _database = None
 
 
-def get_reply_markup(context):
+def get_reply_markup_for_products(context):
     access_token = context.bot_data['access_token']
 
     products = get_products_list(access_token)
@@ -44,8 +44,19 @@ def get_reply_markup(context):
     return InlineKeyboardMarkup(keyboard)
 
 
+def get_reply_markup_for_quantity(context):
+    keyboard = [[
+        InlineKeyboardButton('1 kg', callback_data=1),
+        InlineKeyboardButton('5 kg', callback_data=5),
+        InlineKeyboardButton('10 kg', callback_data=10),
+    ],
+        [InlineKeyboardButton('Назад', callback_data='back')],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def start(update, context):
-    reply_markup = get_reply_markup(context)
+    reply_markup = get_reply_markup_for_products(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
@@ -62,8 +73,7 @@ def press_button(update, context):
     photo_id = product['relationships']['main_image']['data']['id']
     photo = get_image_url(access_token, photo_id)
 
-    keyboard = [[InlineKeyboardButton('Назад', callback_data=product['id'])]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = get_reply_markup_for_quantity(context)
 
     query.message.reply_photo(photo, caption=text, reply_markup=reply_markup)
     query.message.delete()
@@ -71,9 +81,9 @@ def press_button(update, context):
 
 
 def return_to_menu(update, context):
-    reply_markup = get_reply_markup(context)
+    reply_markup = get_reply_markup_for_products(context)
     query = update.callback_query
-    query.message.reply_text('Choose', reply_markup=reply_markup)    
+    query.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
@@ -87,7 +97,7 @@ def get_database_connection():
             host=database_host,
             port=database_port,
             password=database_password,
-            db=0
+            db=0,
         )
     return _database
 
