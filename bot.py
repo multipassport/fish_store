@@ -10,9 +10,9 @@ from moltin import (
     get_image_url,
     get_product,
     add_product_to_cart,
-    get_cart,
     get_cart_items,
     fetch_cart_items,
+    delete_product_from_cart,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -115,6 +115,8 @@ def send_callback_data_to_cart(update, context):
 
     weight = query.data
     add_product_to_cart(access_token, product_id, weight, chat_id)
+    context.chat_data.pop('product_id')
+
     return HANDLE_DESCRIPTION
 
 
@@ -126,7 +128,9 @@ def show_cart(update, context):
     response = get_cart_items(access_token, chat_id)
 
     message = fetch_cart_items(response)
-    context.chat_data['products_with_ids'] = [(fish['name'], fish['id']) for fish in response['data']]
+    context.chat_data['products_with_ids'] = [
+        (fish['name'], fish['id']) for fish in response['data']
+    ]
 
     reply_markup = get_reply_markup_for_cart(context)
     query.message.reply_text(message, reply_markup=reply_markup)
@@ -136,7 +140,14 @@ def show_cart(update, context):
 
 
 def delete_from_cart(update, context):
+    access_token = context.bot_data['access_token']
     query = update.callback_query
+    chat_id = query.from_user.id
+    product_id = query.data
+
+    delete_product_from_cart(access_token, chat_id, product_id)
+
+    return HANDLE_CART
 
 
 def get_database_connection():
@@ -187,6 +198,7 @@ def run_bot():
             ],
             HANDLE_CART: [
                 CallbackQueryHandler(return_to_menu, pattern='back'),
+                CallbackQueryHandler(delete_from_cart),
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],
