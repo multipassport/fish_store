@@ -27,7 +27,7 @@ def get_products_list(access_token):
     return response.json()['data']
 
 
-def add_product_to_cart(access_token, product_id):
+def add_product_to_cart(access_token, product_id, quantity):
     url = 'https://api.moltin.com/v2/carts/mltpass/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -37,7 +37,7 @@ def add_product_to_cart(access_token, product_id):
         'data': {
             'id': product_id,
             'type': 'cart_item',
-            'quantity': 1,
+            'quantity': quantity,
         },
     }
     response = requests.post(url, headers=headers, json=payload)

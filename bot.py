@@ -9,6 +9,7 @@ from moltin import (
     fetch_product_description,
     get_image_url,
     get_product,
+    add_product_to_cart,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -75,6 +76,8 @@ def press_button(update, context):
 
     reply_markup = get_reply_markup_for_quantity(context)
 
+    context.chat_data['product_id'] = product['id']
+
     query.message.reply_photo(photo, caption=text, reply_markup=reply_markup)
     query.message.delete()
     return HANDLE_DESCRIPTION
@@ -85,6 +88,16 @@ def return_to_menu(update, context):
     query = update.callback_query
     query.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
+
+
+def send_callback_data_to_cart(update, context):
+    product_id = context.chat_data['product_id']
+    access_token = context.bot_data['access_token']
+
+    query = update.callback_query
+    weight = int(query.data)
+    add_product_to_cart(access_token, product_id, weight)
+    return HANDLE_DESCRIPTION
 
 
 def get_database_connection():
@@ -128,7 +141,8 @@ def run_bot():
                 CallbackQueryHandler(press_button),
             ],
             HANDLE_DESCRIPTION: [
-                CallbackQueryHandler(return_to_menu),
+                CallbackQueryHandler(return_to_menu, pattern='back'),
+                CallbackQueryHandler(send_callback_data_to_cart),
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],
