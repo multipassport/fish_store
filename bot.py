@@ -162,6 +162,8 @@ def respond_to_sent_contact(update, context):
     reply_text = f'Вы прислали эту почту {email}'
     update.message.reply_text(reply_text)
 
+    reply_markup = get_reply_markup_for_products(context)
+    update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
