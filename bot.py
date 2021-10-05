@@ -31,7 +31,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-HANDLE_MENU, HANDLE_DESCRIPTION, HANDLE_CART = range(3)
+HANDLE_MENU, HANDLE_DESCRIPTION, HANDLE_CART, WAIT_FOR_CONTACTS = range(4)
 
 _database = None
 
@@ -67,7 +67,10 @@ def get_reply_markup_for_cart(context):
         [InlineKeyboardButton(f'Удалить {name} из корзины', callback_data=product_id)]
         for name, product_id in products_with_ids
     ]
-    keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
+    keyboard.extend((
+        [InlineKeyboardButton('В меню', callback_data='back')],
+        [InlineKeyboardButton('Оплатить', callback_data='pay')],
+    ))
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -116,7 +119,6 @@ def send_callback_data_to_cart(update, context):
     weight = int(query.data)
     add_product_to_cart(access_token, product_id, weight, chat_id)
     context.chat_data.pop('product_id')
-
     return HANDLE_DESCRIPTION
 
 
@@ -135,7 +137,6 @@ def show_cart(update, context):
     reply_markup = get_reply_markup_for_cart(context)
     query.message.reply_text(message, reply_markup=reply_markup)
     query.message.delete()
-
     return HANDLE_CART
 
 
@@ -146,8 +147,22 @@ def delete_from_cart(update, context):
     product_id = query.data
 
     delete_product_from_cart(access_token, chat_id, product_id)
-
     show_cart(update, context)
+
+
+def ask_for_user_contacts(update, context):
+    question = 'Введите ваш e-mail'
+    query = update.callback_query
+    query.message.reply_text(question)
+    return WAIT_FOR_CONTACTS
+
+
+def respond_to_sent_contact(update, context):
+    email = update.message.text
+    reply_text = f'Вы прислали эту почту {email}'
+    update.message.reply_text(reply_text)
+
+    return HANDLE_MENU
 
 
 def get_database_connection():
@@ -198,7 +213,11 @@ def run_bot():
             ],
             HANDLE_CART: [
                 CallbackQueryHandler(return_to_menu, pattern='back'),
+                CallbackQueryHandler(ask_for_user_contacts, pattern='pay'),
                 CallbackQueryHandler(delete_from_cart),
+            ],
+            WAIT_FOR_CONTACTS: [
+                MessageHandler(Filters.text, respond_to_sent_contact),
             ],
         },
         fallbacks=[MessageHandler(Filters.text, error)],
