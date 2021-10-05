@@ -1,3 +1,4 @@
+import glob
 import os
 import requests
 
@@ -65,8 +66,7 @@ def get_product(access_token, product_id):
     return response.json()['data']
 
 
-def fetch_product_description(access_token, product_id):
-    response = get_product(access_token, product_id)
+def fetch_product_description(access_token, response):
     name = response['name']
     price = f'{response["meta"]["display_price"]["with_tax"]["formatted"]} per kg'
     stock = f'{response["meta"]["stock"]["level"]}kg on stock'
@@ -74,11 +74,57 @@ def fetch_product_description(access_token, product_id):
     return '\n'.join((name, price, stock, description))
 
 
-load_dotenv()
-client_id = os.getenv('CLIENT_ID')
-client_secret = os.getenv('CLIENT_SECRET')
-access_token = get_bearer_token(client_id, client_secret)
-products = get_products_list(access_token)
+def create_file(access_token, filepath):
+    url = 'https://api.moltin.com/v2/files'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+
+    with open(filepath, 'rb') as file:
+        files = {
+            'file': file,
+            'public': True
+        }
+        response = requests.post(url, headers=headers, files=files)
+        response.raise_for_status()
+    return response.json()
+
+
+def get_file_ids(access_token):
+    url = 'https://api.moltin.com/v2/files'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return [description['id'] for description in response.json()['data']]
+
+
+def link_product_with_image(access_token, product_id, image_id):
+    url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'data': {
+            'type': 'main_image',
+            'id': image_id,
+        },
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_image_url(access_token, image_id):
+    url = f'https://api.moltin.com/v2/files/{image_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()['data']['link']['href']
 
 
 if __name__ == '__main__':
@@ -87,7 +133,19 @@ if __name__ == '__main__':
     client_secret = os.getenv('CLIENT_SECRET')
     product_id = '3b76a3c5-a505-46bc-9924-fbf719903599'
 
+    images_pathes = glob.glob('./fishes/*')
     access_token = get_bearer_token(client_id, client_secret)
+    print(access_token)
 
+    # for image_path in images_pathes:
+    #     create_file(access_token, image_path)
     products = get_products_list(access_token)
-    product = products[0]
+    # print(get_file_ids(access_token))
+    print(products)
+    # link_product_with_image(
+    #     access_token,
+    #     '3b76a3c5-a505-46bc-9924-fbf719903599',
+    #     'd9633aad-c19e-42cd-a1d8-3c26dab44fe4'
+    # )
+
+    # product = products[0]
