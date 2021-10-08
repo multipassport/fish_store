@@ -173,10 +173,9 @@ def respond_to_sent_contact(update, context):
     reply_text = f'Вы прислали эту почту {email}'
     update.message.reply_text(reply_text)
 
-    if not _database.hgetall(chat_id):
-        response = create_customer(full_name, email, **moltin_headers)
-        mapping = {'user_moltin_id': response['data']['id']}
-        _database.hset(chat_id, mapping=mapping)
+    response = create_customer(full_name, email, **moltin_headers)
+    mapping = {'user_moltin_id': response['data']['id']}
+    _database.hset(chat_id, mapping=mapping)
 
     reply_markup = get_reply_markup_for_products(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
