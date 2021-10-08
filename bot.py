@@ -26,9 +26,8 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
+from log_handler import TelegramBotHandler
+
 
 logger = logging.getLogger(__name__)
 
@@ -203,23 +202,9 @@ def error(update, context):
     return HANDLE_MENU
 
 
-def run_bot():
-    load_dotenv()
-
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
-    tg_token = os.getenv('TG_BOT_TOKEN')
-    database_password = os.getenv('REDIS_PASSWORD')
-    database_host = os.getenv('REDIS_ENDPOINT')
-    database_port = os.getenv('REDIS_PORT')
-
-    _database = get_database_connection(database_password, database_host, database_port)
-
+def run_bot(tg_token, moltin_headers):
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
-
-    access_token = get_bearer_token(client_id, client_secret)
-    moltin_headers = {'Authorization': f'Bearer {access_token}'}
 
     context = CallbackContext(dispatcher)
     context.bot_data['moltin_headers'] = moltin_headers
@@ -253,5 +238,31 @@ def run_bot():
     updater.start_polling()
 
 
+def main():
+    load_dotenv()
+
+    client_id = os.getenv('CLIENT_ID')
+    client_secret = os.getenv('CLIENT_SECRET')
+    tg_token = os.getenv('TG_BOT_TOKEN')
+    database_password = os.getenv('REDIS_PASSWORD')
+    database_host = os.getenv('REDIS_ENDPOINT')
+    database_port = os.getenv('REDIS_PORT')
+    logbot_token = os.getenv('TG_LOG_BOT_TOKEN')
+    chat_id = os.getenv('TG_CHAT_ID')
+
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    logger.addHandler(TelegramBotHandler(logbot_token, chat_id))
+
+    _database = get_database_connection(database_password, database_host, database_port)
+
+    access_token = get_bearer_token(client_id, client_secret)
+    moltin_headers = {'Authorization': f'Bearer {access_token}'}
+
+    run_bot(tg_token, moltin_headers)
+
+
 if __name__ == '__main__':
-    run_bot()
+    main()
