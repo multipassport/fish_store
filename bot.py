@@ -37,9 +37,9 @@ _database = None
 
 
 def get_reply_markup_for_products(context):
-    access_token = context.bot_data['access_token']
+    moltin_headers = context.bot_data['moltin_headers']
 
-    products = get_products_list(access_token)
+    products = get_products_list(**moltin_headers)
     products_with_ids = [(product['name'], product['id']) for product in products]
     keyboard = [
         [InlineKeyboardButton(name, callback_data=product_id)]
@@ -81,16 +81,16 @@ def start(update, context):
 
 
 def press_button(update, context):
-    access_token = context.bot_data['access_token']
+    moltin_headers = context.bot_data['moltin_headers']
 
     query = update.callback_query
     query.answer()
 
-    product = get_product(access_token, query.data)
+    product = get_product(query.data, **moltin_headers)
     text = fetch_product_description(product)
 
     photo_id = product['relationships']['main_image']['data']['id']
-    photo = get_image_url(access_token, photo_id)
+    photo = get_image_url(photo_id, **moltin_headers)
 
     reply_markup = get_reply_markup_for_quantity()
 
@@ -114,10 +114,10 @@ def send_callback_data_to_cart(update, context):
     chat_id = query.from_user.id
 
     product_id = context.chat_data['product_id']
-    access_token = context.bot_data['access_token']
+    moltin_headers = context.bot_data['moltin_headers']
 
     weight = int(query.data)
-    add_product_to_cart(access_token, product_id, weight, chat_id)
+    add_product_to_cart(product_id, weight, chat_id, **moltin_headers)
     context.chat_data.pop('product_id')
     return HANDLE_DESCRIPTION
 
@@ -126,8 +126,8 @@ def show_cart(update, context):
     query = update.callback_query
     chat_id = query.from_user.id
 
-    access_token = context.bot_data['access_token']
-    response = get_cart_items(access_token, chat_id)
+    moltin_headers = context.bot_data['moltin_headers']
+    response = get_cart_items(chat_id, **moltin_headers)
 
     message = fetch_cart_items(response)
     context.chat_data['products_with_ids'] = [
@@ -141,12 +141,12 @@ def show_cart(update, context):
 
 
 def delete_from_cart(update, context):
-    access_token = context.bot_data['access_token']
+    moltin_headers = context.bot_data['moltin_headers']
     query = update.callback_query
     chat_id = query.from_user.id
     product_id = query.data
 
-    delete_product_from_cart(access_token, chat_id, product_id)
+    delete_product_from_cart(chat_id, product_id, **moltin_headers)
     show_cart(update, context)
 
 
@@ -198,8 +198,13 @@ def run_bot():
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
+    access_token = get_bearer_token(client_id, client_secret)
+    moltin_headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+
     context = CallbackContext(dispatcher)
-    context.bot_data['access_token'] = get_bearer_token(client_id, client_secret)
+    context.bot_data['moltin_headers'] = moltin_headers
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],

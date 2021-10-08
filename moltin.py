@@ -17,22 +17,17 @@ def get_bearer_token(client_id, client_secret):
     return response.json().get('access_token')
 
 
-def get_products_list(access_token):
+def get_products_list(**headers):
     url = 'https://api.moltin.com/v2/products'
-    header = {
-        'Authorization': f'Bearer {access_token}',
-    }
-    response = requests.get(url, headers=header)
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']
 
 
-def add_product_to_cart(access_token, product_id, quantity, chat_id):
+def add_product_to_cart(product_id, quantity, chat_id, **headers):
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json',
-    }
+    headers_for_post = dict(headers)
+    headers_for_post['Content-Type'] = 'application/json'
     payload = {
         'data': {
             'id': product_id,
@@ -40,39 +35,29 @@ def add_product_to_cart(access_token, product_id, quantity, chat_id):
             'quantity': quantity,
         },
     }
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers_for_post, json=payload)
     response.raise_for_status()
     return response.json()
 
 
-def get_cart(access_token, chat_id):
+def get_cart(chat_id, **headers):
     url = f'https://api.moltin.com/v2/carts/{chat_id}'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_cart_items(access_token, chat_id):
+def get_cart_items(chat_id, **headers):
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_product(access_token, product_id):
+def get_product(product_id, **headers):
     url = os.path.join('https://api.moltin.com/v2/products/', product_id)
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
-
     return response.json()['data']
 
 
@@ -100,11 +85,8 @@ def fetch_cart_items(response):
     return message
 
 
-def create_file(access_token, filepath):
+def create_file(filepath, **headers):
     url = 'https://api.moltin.com/v2/files'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
 
     with open(filepath, 'rb') as file:
         files = {
@@ -116,48 +98,37 @@ def create_file(access_token, filepath):
     return response.json()
 
 
-def get_file_ids(access_token):
+def get_file_ids(**headers):
     url = 'https://api.moltin.com/v2/files'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return [description['id'] for description in response.json()['data']]
 
 
-def link_product_with_image(access_token, product_id, image_id):
+def link_product_with_image(product_id, image_id, **headers):
     url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json',
-    }
+    headers_for_post = dict(headers)
+    headers_for_post['Content-Type'] = 'application/json'
     payload = {
         'data': {
             'type': 'main_image',
             'id': image_id,
         },
     }
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers_for_post, json=payload)
     response.raise_for_status()
     return response.json()
 
 
-def get_image_url(access_token, image_id):
+def get_image_url(image_id, **headers):
     url = f'https://api.moltin.com/v2/files/{image_id}'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']['link']['href']
 
 
-def delete_product_from_cart(access_token, chat_id, product_id):
+def delete_product_from_cart(chat_id, product_id, **headers):
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items/{product_id}'
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
     response = requests.delete(url, headers=headers)
     response.raise_for_status()
     return response.json()
@@ -172,6 +143,7 @@ if __name__ == '__main__':
     images_pathes = glob.glob('./fishes/*')
     access_token = get_bearer_token(client_id, client_secret)
     print(access_token)
+
 
     # for image_path in images_pathes:
     #     create_file(access_token, image_path)
