@@ -13,6 +13,8 @@ from moltin import (
     get_cart_items,
     fetch_cart_items,
     delete_product_from_cart,
+    create_customer,
+    get_customer,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -158,9 +160,22 @@ def ask_for_user_contacts(update, context):
 
 
 def respond_to_sent_contact(update, context):
-    email = update.message.text
+    moltin_headers = context.bot_data['moltin_headers']
+
+    tg_message = update.message
+    email = tg_message.text
+    chat_id = tg_message.from_user.id
+    full_name = f'{tg_message.from_user.first_name} {tg_message.from_user.last_name}'
+
     reply_text = f'Вы прислали эту почту {email}'
     update.message.reply_text(reply_text)
+
+    if not _database.hgetall(chat_id):
+        response = create_customer(full_name, email, **moltin_headers)
+        mapping = {'user_moltin_id': response['data']['id']}
+        _database.hmset(chat_id, mapping=mapping)
+
+    # user_moltin_id = _database.hget(chat_id, 'user_moltin_id').decode('utf-8')
 
     reply_markup = get_reply_markup_for_products(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
@@ -171,7 +186,7 @@ def get_database_connection():
     global _database
     if _database is None:
         database_password = os.getenv('REDIS_PASSWORD')
-        database_host = os.getenv('REDIS_HOST')
+        database_host = os.getenv('REDIS_ENDPOINT')
         database_port = os.getenv('REDIS_PORT')
         _database = redis.Redis(
             host=database_host,
@@ -199,9 +214,7 @@ def run_bot():
     dispatcher = updater.dispatcher
 
     access_token = get_bearer_token(client_id, client_secret)
-    moltin_headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
+    moltin_headers = {'Authorization': f'Bearer {access_token}'}
 
     context = CallbackContext(dispatcher)
     context.bot_data['moltin_headers'] = moltin_headers

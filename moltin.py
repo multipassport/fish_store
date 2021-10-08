@@ -134,6 +134,31 @@ def delete_product_from_cart(chat_id, product_id, **headers):
     return response.json()
 
 
+def create_customer(name, email, **headers):
+    url = 'https://api.moltin.com/v2/customers'
+    headers_for_post = dict(headers)
+    headers_for_post['Content-Type'] = 'application/json'
+    payload = {
+        'data': {
+            'type': 'customer',
+            'name': name,
+            'email': email,
+        },
+    }
+    response = requests.post(url, json=payload, headers=headers_for_post)
+    if response.status_code == 409:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
+def get_customer(chat_id, **headers):
+    url = f'https://api.moltin.com/v2/customers/{chat_id}'
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
 if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
