@@ -1,8 +1,5 @@
-import glob
 import os
 import requests
-
-from dotenv import load_dotenv
 
 
 def get_bearer_token(client_id, client_secret):
@@ -157,28 +154,3 @@ def get_customer(chat_id, **headers):
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
-
-
-if __name__ == '__main__':
-    load_dotenv()
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
-    product_id = '3b76a3c5-a505-46bc-9924-fbf719903599'
-
-    images_pathes = glob.glob('./fishes/*')
-    access_token = get_bearer_token(client_id, client_secret)
-    print(access_token)
-
-
-    # for image_path in images_pathes:
-    #     create_file(access_token, image_path)
-    products = get_products_list(access_token)
-    # print(get_file_ids(access_token))
-    print(products)
-    # link_product_with_image(
-    #     access_token,
-    #     '3b76a3c5-a505-46bc-9924-fbf719903599',
-    #     'd9633aad-c19e-42cd-a1d8-3c26dab44fe4'
-    # )
-
-    # product = products[0]

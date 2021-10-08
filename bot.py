@@ -14,7 +14,6 @@ from moltin import (
     fetch_cart_items,
     delete_product_from_cart,
     create_customer,
-    get_customer,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -153,8 +152,13 @@ def delete_from_cart(update, context):
 
 
 def ask_for_user_contacts(update, context):
-    question = 'Введите ваш e-mail'
     query = update.callback_query
+    chat_id = query.from_user.id
+    if _database.hget(chat_id, 'user_moltin_id'):
+        reply_markup = get_reply_markup_for_products(context)
+        query.message.reply_text('Ваша почта уже в базе', reply_markup=reply_markup)
+        return HANDLE_MENU
+    question = 'Введите ваш e-mail'
     query.message.reply_text(question)
     return WAIT_FOR_CONTACTS
 
@@ -173,21 +177,16 @@ def respond_to_sent_contact(update, context):
     if not _database.hgetall(chat_id):
         response = create_customer(full_name, email, **moltin_headers)
         mapping = {'user_moltin_id': response['data']['id']}
-        _database.hmset(chat_id, mapping=mapping)
-
-    # user_moltin_id = _database.hget(chat_id, 'user_moltin_id').decode('utf-8')
+        _database.hset(chat_id, mapping=mapping)
 
     reply_markup = get_reply_markup_for_products(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
-def get_database_connection():
+def get_database_connection(database_password, database_host, database_port):
     global _database
     if _database is None:
-        database_password = os.getenv('REDIS_PASSWORD')
-        database_host = os.getenv('REDIS_ENDPOINT')
-        database_port = os.getenv('REDIS_PORT')
         _database = redis.Redis(
             host=database_host,
             port=database_port,
@@ -199,6 +198,9 @@ def get_database_connection():
 
 def error(update, context):
     logger.warning(f'Update "{update}" caused error "{context.error}"')
+    reply_markup = get_reply_markup_for_products(context)
+    update.message.reply_text('Произошла ошибка', reply_markup=reply_markup)
+    return HANDLE_MENU
 
 
 def run_bot():
@@ -207,8 +209,11 @@ def run_bot():
     client_id = os.getenv('CLIENT_ID')
     client_secret = os.getenv('CLIENT_SECRET')
     tg_token = os.getenv('TG_BOT_TOKEN')
+    database_password = os.getenv('REDIS_PASSWORD')
+    database_host = os.getenv('REDIS_ENDPOINT')
+    database_port = os.getenv('REDIS_PORT')
 
-    database = get_database_connection()
+    _database = get_database_connection(database_password, database_host, database_port)
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
