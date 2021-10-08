@@ -3,6 +3,7 @@ import logging
 import redis
 
 from dotenv import load_dotenv
+from log_handler import TelegramBotHandler
 from moltin import (
     get_bearer_token,
     get_products_list,
@@ -25,8 +26,6 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
 )
-
-from log_handler import TelegramBotHandler
 
 
 logger = logging.getLogger(__name__)
