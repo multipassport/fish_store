@@ -118,9 +118,12 @@ def delete_from_cart(update, context):
 
 
 def ask_for_user_contacts(update, context):
+    database = context.bot_data['database']
+
     query = update.callback_query
     chat_id = query.from_user.id
-    if _database.hget(chat_id, 'user_moltin_id'):
+
+    if database.hget(chat_id, 'user_moltin_id'):
         reply_markup = get_products_reply_markup(context)
         query.message.reply_text('Ваша почта уже в базе', reply_markup=reply_markup)
         return HANDLE_MENU
@@ -130,6 +133,8 @@ def ask_for_user_contacts(update, context):
 
 
 def respond_to_sent_contact(update, context):
+    database = context.bot_data['database']
+
     moltin_headers = create_headers(context)
 
     tg_message = update.message
@@ -142,7 +147,8 @@ def respond_to_sent_contact(update, context):
 
     response = create_customer(full_name, email, **moltin_headers)
     mapping = {'user_moltin_id': response['data']['id']}
-    _database.hset(chat_id, mapping=mapping)
+
+    database.hset(chat_id, mapping=mapping)
 
     reply_markup = get_products_reply_markup(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
@@ -150,15 +156,12 @@ def respond_to_sent_contact(update, context):
 
 
 def get_database_connection(database_password, database_host, database_port):
-    global _database
-    if _database is None:
-        _database = redis.Redis(
-            host=database_host,
-            port=database_port,
-            password=database_password,
-            db=0,
-        )
-    return _database
+    return redis.Redis(
+        host=database_host,
+        port=database_port,
+        password=database_password,
+        db=0,
+    )
 
 
 def handle_error(update, context):
@@ -173,7 +176,6 @@ def run_bot(tg_token, bot_data):
     context = CallbackContext(dispatcher)
 
     context.bot_data.update(bot_data)
-    print(context.bot_data)
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -217,8 +219,16 @@ def main():
 
     access_token, receiving_time = get_bearer_token(client_id, client_secret)
 
-    bot_data_keys = ['access_token', 'token_receiving_time', 'client_id', 'client_secret']
-    bot_data_values = [access_token, receiving_time, client_id, client_secret]
+    database = get_database_connection(database_password, database_host, database_port)
+
+    bot_data_keys = [
+        'access_token',
+        'token_receiving_time',
+        'client_id',
+        'client_secret',
+        'database',
+    ]
+    bot_data_values = [access_token, receiving_time, client_id, client_secret, database]
     bot_data = zip(bot_data_keys, bot_data_values)
 
     logging.basicConfig(
@@ -226,8 +236,6 @@ def main():
         level=logging.INFO
     )
     logger.addHandler(TelegramBotHandler(logbot_token, chat_id))
-
-    _database = get_database_connection(database_password, database_host, database_port)
 
     run_bot(tg_token, bot_data)
 
