@@ -3,10 +3,14 @@ import logging
 import redis
 
 from dotenv import load_dotenv
+from keyboards import (
+    get_reply_markup_for_products,
+    get_reply_markup_for_quantity,
+    get_reply_markup_for_cart,
+)
 from log_handler import TelegramBotHandler
 from moltin import (
     get_bearer_token,
-    get_products_list,
     fetch_product_description,
     get_image_url,
     get_product,
@@ -15,9 +19,8 @@ from moltin import (
     fetch_cart_items,
     delete_product_from_cart,
     create_customer,
-    check_token_relevance,
+    create_headers,
 )
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -34,44 +37,6 @@ logger = logging.getLogger(__name__)
 HANDLE_MENU, HANDLE_DESCRIPTION, HANDLE_CART, WAIT_FOR_CONTACTS = range(4)
 
 _database = None
-
-
-def get_reply_markup_for_products(context):
-    moltin_headers = create_headers(context)
-
-    products = get_products_list(**moltin_headers)
-    products_with_ids = [(product['name'], product['id']) for product in products]
-    keyboard = [
-        [InlineKeyboardButton(name, callback_data=product_id)]
-        for name, product_id in products_with_ids
-    ]
-    keyboard.append([InlineKeyboardButton('Корзина', callback_data='cart')])
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_reply_markup_for_quantity():
-    keyboard = [[
-        InlineKeyboardButton('1 kg', callback_data=1),
-        InlineKeyboardButton('5 kg', callback_data=5),
-        InlineKeyboardButton('10 kg', callback_data=10),
-    ],
-        [InlineKeyboardButton('Корзина', callback_data='cart')],
-        [InlineKeyboardButton('Назад', callback_data='back')],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_reply_markup_for_cart(context):
-    products_with_ids = context.chat_data['products_with_ids']
-    keyboard = [
-        [InlineKeyboardButton(f'Удалить {name} из корзины', callback_data=product_id)]
-        for name, product_id in products_with_ids
-    ]
-    keyboard.extend((
-        [InlineKeyboardButton('В меню', callback_data='back')],
-        [InlineKeyboardButton('Оплатить', callback_data='pay')],
-    ))
-    return InlineKeyboardMarkup(keyboard)
 
 
 def start(update, context):
@@ -194,15 +159,6 @@ def get_database_connection(database_password, database_host, database_port):
             db=0,
         )
     return _database
-
-
-def create_headers(context):
-    receiving_time = context.bot_data['token_receiving_time']
-    access_token = context.bot_data['access_token']
-    client_id = context.bot_data['client_id']
-    client_secret = context.bot_data['client_secret']
-    access_token, receiving_time = check_token_relevance(client_id, client_secret, access_token, receiving_time)
-    return {'Authorization': f'Bearer {access_token}'}
 
 
 def error(update, context):

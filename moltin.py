@@ -163,3 +163,12 @@ def check_token_relevance(client_id, client_secret, access_token, receiving_time
     if monotonic() - receiving_time > token_reactivation_time:
         return get_bearer_token(client_id, client_secret)
     return access_token, receiving_time
+
+
+def create_headers(context):
+    receiving_time = context.bot_data['token_receiving_time']
+    access_token = context.bot_data['access_token']
+    client_id = context.bot_data['client_id']
+    client_secret = context.bot_data['client_secret']
+    access_token, receiving_time = check_token_relevance(client_id, client_secret, access_token, receiving_time)
+    return {'Authorization': f'Bearer {access_token}'}
