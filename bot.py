@@ -4,9 +4,9 @@ import redis
 
 from dotenv import load_dotenv
 from keyboards import (
-    get_reply_markup_for_products,
-    get_reply_markup_for_quantity,
-    get_reply_markup_for_cart,
+    get_products_reply_markup,
+    get_quantity_reply_markup,
+    get_cart_reply_markup,
 )
 from log_handler import TelegramBotHandler
 from moltin import (
@@ -14,7 +14,7 @@ from moltin import (
     fetch_product_description,
     get_image_url,
     get_product,
-    add_product_to_cart,
+    add_product_to_moltin_cart,
     get_cart_items,
     fetch_cart_items,
     delete_product_from_cart,
@@ -40,12 +40,12 @@ _database = None
 
 
 def start(update, context):
-    reply_markup = get_reply_markup_for_products(context)
+    reply_markup = get_products_reply_markup(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
-def press_button(update, context):
+def show_product_description(update, context):
     moltin_headers = create_headers(context)
 
     query = update.callback_query
@@ -57,7 +57,7 @@ def press_button(update, context):
     photo_id = product['relationships']['main_image']['data']['id']
     photo = get_image_url(photo_id, **moltin_headers)
 
-    reply_markup = get_reply_markup_for_quantity()
+    reply_markup = get_quantity_reply_markup()
 
     context.chat_data['product_id'] = product['id']
 
@@ -67,14 +67,14 @@ def press_button(update, context):
 
 
 def return_to_menu(update, context):
-    reply_markup = get_reply_markup_for_products(context)
+    reply_markup = get_products_reply_markup(context)
     query = update.callback_query
     query.message.reply_text('Choose', reply_markup=reply_markup)
     query.message.delete()
     return HANDLE_MENU
 
 
-def send_callback_data_to_cart(update, context):
+def send_item_to_cart(update, context):
     query = update.callback_query
     chat_id = query.from_user.id
 
@@ -82,7 +82,7 @@ def send_callback_data_to_cart(update, context):
     moltin_headers = create_headers(context)
 
     weight = int(query.data)
-    add_product_to_cart(product_id, weight, chat_id, **moltin_headers)
+    add_product_to_moltin_cart(product_id, weight, chat_id, **moltin_headers)
     context.chat_data.pop('product_id')
     return HANDLE_DESCRIPTION
 
@@ -100,7 +100,7 @@ def show_cart(update, context):
         (fish['name'], fish['id']) for fish in response['data']
     ]
 
-    reply_markup = get_reply_markup_for_cart(context)
+    reply_markup = get_cart_reply_markup(context)
     query.message.reply_text(message, reply_markup=reply_markup)
     query.message.delete()
     return HANDLE_CART
@@ -121,7 +121,7 @@ def ask_for_user_contacts(update, context):
     query = update.callback_query
     chat_id = query.from_user.id
     if _database.hget(chat_id, 'user_moltin_id'):
-        reply_markup = get_reply_markup_for_products(context)
+        reply_markup = get_products_reply_markup(context)
         query.message.reply_text('Ваша почта уже в базе', reply_markup=reply_markup)
         return HANDLE_MENU
     question = 'Введите ваш e-mail'
@@ -144,7 +144,7 @@ def respond_to_sent_contact(update, context):
     mapping = {'user_moltin_id': response['data']['id']}
     _database.hset(chat_id, mapping=mapping)
 
-    reply_markup = get_reply_markup_for_products(context)
+    reply_markup = get_products_reply_markup(context)
     update.message.reply_text('Choose', reply_markup=reply_markup)
     return HANDLE_MENU
 
@@ -161,7 +161,7 @@ def get_database_connection(database_password, database_host, database_port):
     return _database
 
 
-def error(update, context):
+def handle_error(update, context):
     logger.warning(f'Update "{update}" caused error "{context.error}"')
     return HANDLE_MENU
 
@@ -181,12 +181,12 @@ def run_bot(tg_token, access_token, receiving_time, client_id, client_secret):
         states={
             HANDLE_MENU: [
                 CallbackQueryHandler(show_cart, pattern='cart'),
-                CallbackQueryHandler(press_button),
+                CallbackQueryHandler(show_product_description),
             ],
             HANDLE_DESCRIPTION: [
                 CallbackQueryHandler(return_to_menu, pattern='back'),
                 CallbackQueryHandler(show_cart, pattern='cart'),
-                CallbackQueryHandler(send_callback_data_to_cart),
+                CallbackQueryHandler(send_item_to_cart),
             ],
             HANDLE_CART: [
                 CallbackQueryHandler(return_to_menu, pattern='back'),
@@ -197,10 +197,10 @@ def run_bot(tg_token, access_token, receiving_time, client_id, client_secret):
                 MessageHandler(Filters.text, respond_to_sent_contact),
             ],
         },
-        fallbacks=[MessageHandler(Filters.text, error)],
+        fallbacks=[MessageHandler(Filters.text, handle_error)],
     )
     dispatcher.add_handler(conversation)
-    dispatcher.add_error_handler(error)
+    dispatcher.add_error_handler(handle_error)
 
     updater.start_polling()
 

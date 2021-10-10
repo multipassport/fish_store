@@ -2,7 +2,7 @@ from moltin import create_headers, get_products_list
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_reply_markup_for_products(context):
+def get_products_reply_markup(context):
     moltin_headers = create_headers(context)
 
     products = get_products_list(**moltin_headers)
@@ -15,7 +15,7 @@ def get_reply_markup_for_products(context):
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_reply_markup_for_quantity():
+def get_quantity_reply_markup():
     keyboard = [[
         InlineKeyboardButton('1 kg', callback_data=1),
         InlineKeyboardButton('5 kg', callback_data=5),
@@ -27,7 +27,7 @@ def get_reply_markup_for_quantity():
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_reply_markup_for_cart(context):
+def get_cart_reply_markup(context):
     products_with_ids = context.chat_data['products_with_ids']
     keyboard = [
         [InlineKeyboardButton(f'Удалить {name} из корзины', callback_data=product_id)]

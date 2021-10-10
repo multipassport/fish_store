@@ -23,7 +23,7 @@ def get_products_list(**headers):
     return response.json()['data']
 
 
-def add_product_to_cart(product_id, quantity, chat_id, **headers):
+def add_product_to_moltin_cart(product_id, quantity, chat_id, **headers):
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     headers_for_post = dict(headers)
     headers_for_post['Content-Type'] = 'application/json'
