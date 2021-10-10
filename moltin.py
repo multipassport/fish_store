@@ -1,6 +1,8 @@
 import os
 import requests
 
+from time import monotonic
+
 
 def get_bearer_token(client_id, client_secret):
     url = 'https://api.moltin.com/oauth/access_token'
@@ -11,7 +13,7 @@ def get_bearer_token(client_id, client_secret):
     }
     response = requests.post(url, data=moltin_keys)
     response.raise_for_status()
-    return response.json().get('access_token')
+    return response.json().get('access_token'), monotonic()
 
 
 def get_products_list(**headers):
@@ -154,3 +156,10 @@ def get_customer(chat_id, **headers):
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
+
+
+def check_token_relevance(client_id, client_secret, access_token, receiving_time):
+    token_reactivation_time = 3000
+    if monotonic() - receiving_time > token_reactivation_time:
+        return get_bearer_token(client_id, client_secret)
+    return access_token, receiving_time

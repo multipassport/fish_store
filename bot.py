@@ -15,6 +15,7 @@ from moltin import (
     fetch_cart_items,
     delete_product_from_cart,
     create_customer,
+    check_token_relevance,
 )
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -36,7 +37,7 @@ _database = None
 
 
 def get_reply_markup_for_products(context):
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
 
     products = get_products_list(**moltin_headers)
     products_with_ids = [(product['name'], product['id']) for product in products]
@@ -80,7 +81,7 @@ def start(update, context):
 
 
 def press_button(update, context):
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
 
     query = update.callback_query
     query.answer()
@@ -113,7 +114,7 @@ def send_callback_data_to_cart(update, context):
     chat_id = query.from_user.id
 
     product_id = context.chat_data['product_id']
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
 
     weight = int(query.data)
     add_product_to_cart(product_id, weight, chat_id, **moltin_headers)
@@ -125,7 +126,8 @@ def show_cart(update, context):
     query = update.callback_query
     chat_id = query.from_user.id
 
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
+
     response = get_cart_items(chat_id, **moltin_headers)
 
     message = fetch_cart_items(response)
@@ -140,7 +142,8 @@ def show_cart(update, context):
 
 
 def delete_from_cart(update, context):
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
+
     query = update.callback_query
     chat_id = query.from_user.id
     product_id = query.data
@@ -162,7 +165,7 @@ def ask_for_user_contacts(update, context):
 
 
 def respond_to_sent_contact(update, context):
-    moltin_headers = context.bot_data['moltin_headers']
+    moltin_headers = create_headers(context)
 
     tg_message = update.message
     email = tg_message.text
@@ -193,19 +196,29 @@ def get_database_connection(database_password, database_host, database_port):
     return _database
 
 
+def create_headers(context):
+    receiving_time = context.bot_data['token_receiving_time']
+    access_token = context.bot_data['access_token']
+    client_id = context.bot_data['client_id']
+    client_secret = context.bot_data['client_secret']
+    access_token, receiving_time = check_token_relevance(client_id, client_secret, access_token, receiving_time)
+    return {'Authorization': f'Bearer {access_token}'}
+
+
 def error(update, context):
     logger.warning(f'Update "{update}" caused error "{context.error}"')
-    reply_markup = get_reply_markup_for_products(context)
-    update.message.reply_text('Произошла ошибка', reply_markup=reply_markup)
     return HANDLE_MENU
 
 
-def run_bot(tg_token, moltin_headers):
+def run_bot(tg_token, access_token, receiving_time, client_id, client_secret):
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
     context = CallbackContext(dispatcher)
-    context.bot_data['moltin_headers'] = moltin_headers
+    context.bot_data['access_token'] = access_token
+    context.bot_data['token_receiving_time'] = receiving_time
+    context.bot_data['client_id'] = client_id
+    context.bot_data['client_secret'] = client_secret
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -238,7 +251,6 @@ def run_bot(tg_token, moltin_headers):
 
 def main():
     load_dotenv()
-
     client_id = os.getenv('CLIENT_ID')
     client_secret = os.getenv('CLIENT_SECRET')
     tg_token = os.getenv('TG_BOT_TOKEN')
@@ -248,6 +260,8 @@ def main():
     logbot_token = os.getenv('TG_LOG_BOT_TOKEN')
     chat_id = os.getenv('TG_CHAT_ID')
 
+    access_token, receiving_time = get_bearer_token(client_id, client_secret)
+
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
@@ -256,10 +270,7 @@ def main():
 
     _database = get_database_connection(database_password, database_host, database_port)
 
-    access_token = get_bearer_token(client_id, client_secret)
-    moltin_headers = {'Authorization': f'Bearer {access_token}'}
-
-    run_bot(tg_token, moltin_headers)
+    run_bot(tg_token, access_token, receiving_time, client_id, client_secret)
 
 
 if __name__ == '__main__':
