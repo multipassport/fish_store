@@ -166,15 +166,14 @@ def handle_error(update, context):
     return HANDLE_MENU
 
 
-def run_bot(tg_token, access_token, receiving_time, client_id, client_secret):
+def run_bot(tg_token, bot_data):
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
     context = CallbackContext(dispatcher)
-    context.bot_data['access_token'] = access_token
-    context.bot_data['token_receiving_time'] = receiving_time
-    context.bot_data['client_id'] = client_id
-    context.bot_data['client_secret'] = client_secret
+
+    context.bot_data.update(bot_data)
+    print(context.bot_data)
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -218,6 +217,10 @@ def main():
 
     access_token, receiving_time = get_bearer_token(client_id, client_secret)
 
+    bot_data_keys = ['access_token', 'token_receiving_time', 'client_id', 'client_secret']
+    bot_data_values = [access_token, receiving_time, client_id, client_secret]
+    bot_data = zip(bot_data_keys, bot_data_values)
+
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
@@ -226,7 +229,7 @@ def main():
 
     _database = get_database_connection(database_password, database_host, database_port)
 
-    run_bot(tg_token, access_token, receiving_time, client_id, client_secret)
+    run_bot(tg_token, bot_data)
 
 
 if __name__ == '__main__':
