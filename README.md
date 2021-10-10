@@ -25,7 +25,7 @@ pip install -r requirements.txt
 * `REDIS_PORT` - номер порта базы данных [redis](https://app.redislabs.com/)
 * `REDIS_PASSWORD` - пароль от базы данных [redis](https://app.redislabs.com/)
 * `TG_CHAT_ID` - ID чата Telegram, куда должны приходить сообщения логгера
-* `TG_LOG_BOT_TOKEN` - токен запасного Telegram бота. Получается у [@BotFather](https://telegram.me/BotFather)
+* `TG_LOG_BOT_TOKEN` - токен Telegram бота-логгера. Получается у [@BotFather](https://telegram.me/BotFather)
 
 ## Запуск ботов
 
