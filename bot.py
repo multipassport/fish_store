@@ -36,8 +36,6 @@ logger = logging.getLogger(__name__)
 
 HANDLE_MENU, HANDLE_DESCRIPTION, HANDLE_CART, WAIT_FOR_CONTACTS = range(4)
 
-_database = None
-
 
 def start(update, context):
     reply_markup = get_products_reply_markup(context)
