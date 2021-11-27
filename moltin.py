@@ -3,6 +3,8 @@ import requests
 
 from time import monotonic
 
+from settings import _token_expire_time, _token, client_id, client_secret
+
 
 def get_bearer_token(client_id, client_secret):
     url = 'https://api.moltin.com/oauth/access_token'
@@ -13,17 +15,28 @@ def get_bearer_token(client_id, client_secret):
     }
     response = requests.post(url, data=moltin_keys)
     response.raise_for_status()
-    return response.json().get('access_token'), monotonic()
+    token_expire_time = monotonic() + 3000
+    return response.json().get('access_token'), token_expire_time
 
 
-def get_products_list(**headers):
+def get_actual_token(client_id, client_secret):
+    global _token
+    global _token_expire_time
+    if monotonic() > _token_expire_time:
+        _token, _token_expire_time = get_bearer_token(client_id, client_secret)
+    return _token
+
+
+def get_products_list():
+    headers = create_headers()
     url = 'https://api.moltin.com/v2/products'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']
 
 
-def add_product_to_moltin_cart(product_id, quantity, chat_id, **headers):
+def add_product_to_moltin_cart(product_id, quantity, chat_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     headers_for_post = dict(headers)
     headers_for_post['Content-Type'] = 'application/json'
@@ -39,21 +52,24 @@ def add_product_to_moltin_cart(product_id, quantity, chat_id, **headers):
     return response.json()
 
 
-def get_cart(chat_id, **headers):
+def get_cart(chat_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/carts/{chat_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_cart_items(chat_id, **headers):
+def get_cart_items(chat_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_product(product_id, **headers):
+def get_product(product_id):
+    headers = create_headers()
     url = os.path.join('https://api.moltin.com/v2/products/', product_id)
     response = requests.get(url, headers=headers)
     response.raise_for_status()
@@ -84,7 +100,8 @@ def fetch_cart_items(response):
     return message
 
 
-def create_file(filepath, **headers):
+def create_file(filepath):
+    headers = create_headers()
     url = 'https://api.moltin.com/v2/files'
 
     with open(filepath, 'rb') as file:
@@ -97,16 +114,17 @@ def create_file(filepath, **headers):
     return response.json()
 
 
-def get_file_ids(**headers):
+def get_file_ids():
+    headers = create_headers()
     url = 'https://api.moltin.com/v2/files'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return [description['id'] for description in response.json()['data']]
 
 
-def link_product_with_image(product_id, image_id, **headers):
+def link_product_with_image(product_id, image_id):
     url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
-    headers_for_post = dict(headers)
+    headers_for_post = create_headers()
     headers_for_post['Content-Type'] = 'application/json'
     payload = {
         'data': {
@@ -119,23 +137,25 @@ def link_product_with_image(product_id, image_id, **headers):
     return response.json()
 
 
-def get_image_url(image_id, **headers):
+def get_image_url(image_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/files/{image_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']['link']['href']
 
 
-def delete_product_from_cart(chat_id, product_id, **headers):
+def delete_product_from_cart(chat_id, product_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items/{product_id}'
     response = requests.delete(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def create_customer(name, email, **headers):
+def create_customer(name, email):
     url = 'https://api.moltin.com/v2/customers'
-    headers_for_post = dict(headers)
+    headers_for_post = create_headers()
     headers_for_post['Content-Type'] = 'application/json'
     payload = {
         'data': {
@@ -151,24 +171,14 @@ def create_customer(name, email, **headers):
     return response.json()
 
 
-def get_customer(chat_id, **headers):
+def get_customer(chat_id):
+    headers = create_headers()
     url = f'https://api.moltin.com/v2/customers/{chat_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def check_token_relevance(client_id, client_secret, access_token, receiving_time):
-    token_reactivation_time = 3000
-    if monotonic() - receiving_time > token_reactivation_time:
-        return get_bearer_token(client_id, client_secret)
-    return access_token, receiving_time
-
-
-def create_headers(context):
-    receiving_time = context.bot_data['token_receiving_time']
-    access_token = context.bot_data['access_token']
-    client_id = context.bot_data['client_id']
-    client_secret = context.bot_data['client_secret']
-    access_token, receiving_time = check_token_relevance(client_id, client_secret, access_token, receiving_time)
+def create_headers():
+    access_token = get_actual_token(client_id, client_secret)
     return {'Authorization': f'Bearer {access_token}'}

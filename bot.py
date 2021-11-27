@@ -30,6 +30,7 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
 )
+import settings
 
 
 logger = logging.getLogger(__name__)
@@ -44,16 +45,14 @@ def start(update, context):
 
 
 def show_product_description(update, context):
-    moltin_headers = create_headers(context)
-
     query = update.callback_query
     query.answer()
 
-    product = get_product(query.data, **moltin_headers)
+    product = get_product(query.data)
     text = fetch_product_description(product)
 
     photo_id = product['relationships']['main_image']['data']['id']
-    photo = get_image_url(photo_id, **moltin_headers)
+    photo = get_image_url(photo_id)
 
     reply_markup = get_quantity_reply_markup()
 
@@ -77,10 +76,8 @@ def send_item_to_cart(update, context):
     chat_id = query.from_user.id
 
     product_id = context.chat_data['product_id']
-    moltin_headers = create_headers(context)
-
     weight = int(query.data)
-    add_product_to_moltin_cart(product_id, weight, chat_id, **moltin_headers)
+    add_product_to_moltin_cart(product_id, weight, chat_id)
     context.chat_data.pop('product_id')
     return HANDLE_DESCRIPTION
 
@@ -89,9 +86,7 @@ def show_cart(update, context):
     query = update.callback_query
     chat_id = query.from_user.id
 
-    moltin_headers = create_headers(context)
-
-    response = get_cart_items(chat_id, **moltin_headers)
+    response = get_cart_items(chat_id)
 
     message = fetch_cart_items(response)
     context.chat_data['products_with_ids'] = [
@@ -105,13 +100,11 @@ def show_cart(update, context):
 
 
 def delete_from_cart(update, context):
-    moltin_headers = create_headers(context)
-
     query = update.callback_query
     chat_id = query.from_user.id
     product_id = query.data
 
-    delete_product_from_cart(chat_id, product_id, **moltin_headers)
+    delete_product_from_cart(chat_id, product_id)
     show_cart(update, context)
 
 
@@ -133,8 +126,6 @@ def ask_for_user_contacts(update, context):
 def respond_to_sent_contact(update, context):
     database = context.bot_data['database']
 
-    moltin_headers = create_headers(context)
-
     tg_message = update.message
     email = tg_message.text
     chat_id = tg_message.from_user.id
@@ -143,7 +134,7 @@ def respond_to_sent_contact(update, context):
     reply_text = f'Вы прислали эту почту {email}'
     update.message.reply_text(reply_text)
 
-    response = create_customer(full_name, email, **moltin_headers)
+    response = create_customer(full_name, email)
     mapping = {'user_moltin_id': response['data']['id']}
 
     database.hset(chat_id, mapping=mapping)

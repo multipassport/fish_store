@@ -3,9 +3,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_products_reply_markup(context):
-    moltin_headers = create_headers(context)
+    products = get_products_list()
 
-    products = get_products_list(**moltin_headers)
     products_with_ids = [(product['name'], product['id']) for product in products]
     keyboard = [
         [InlineKeyboardButton(name, callback_data=product_id)]
