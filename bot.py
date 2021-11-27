@@ -1,8 +1,6 @@
-import os
 import logging
 import redis
 
-from dotenv import load_dotenv
 from keyboards import (
     get_products_reply_markup,
     get_quantity_reply_markup,
@@ -30,7 +28,7 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
 )
-import settings
+from settings import get_redis_credentials, get_telegram_credentials
 
 
 logger = logging.getLogger(__name__)
@@ -158,13 +156,13 @@ def handle_error(update, context):
     return HANDLE_MENU
 
 
-def run_bot(tg_token, bot_data):
+def run_bot(tg_token, database):
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
     context = CallbackContext(dispatcher)
 
-    context.bot_data.update(bot_data)
+    context.bot_data['database'] = database
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -196,29 +194,10 @@ def run_bot(tg_token, bot_data):
 
 
 def main():
-    load_dotenv()
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
-    tg_token = os.getenv('TG_BOT_TOKEN')
-    database_password = os.getenv('REDIS_PASSWORD')
-    database_host = os.getenv('REDIS_ENDPOINT')
-    database_port = os.getenv('REDIS_PORT')
-    logbot_token = os.getenv('TG_LOG_BOT_TOKEN')
-    chat_id = os.getenv('TG_CHAT_ID')
+    tg_token, logbot_token, chat_id = get_telegram_credentials()
+    redis_credentials = get_redis_credentials()
 
-    access_token, receiving_time = get_bearer_token(client_id, client_secret)
-
-    database = get_database_connection(database_password, database_host, database_port)
-
-    bot_data_keys = [
-        'access_token',
-        'token_receiving_time',
-        'client_id',
-        'client_secret',
-        'database',
-    ]
-    bot_data_values = [access_token, receiving_time, client_id, client_secret, database]
-    bot_data = zip(bot_data_keys, bot_data_values)
+    database = get_database_connection(*redis_credentials)
 
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -226,7 +205,7 @@ def main():
     )
     logger.addHandler(TelegramBotHandler(logbot_token, chat_id))
 
-    run_bot(tg_token, bot_data)
+    run_bot(tg_token, database)
 
 
 if __name__ == '__main__':

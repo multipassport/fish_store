@@ -1,4 +1,4 @@
-from moltin import create_headers, get_products_list
+from moltin import get_products_list
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 

@@ -1,12 +1,16 @@
-import os
 import requests
 
 from time import monotonic
 
-from settings import _token_expire_time, _token, client_id, client_secret
+from settings import get_moltin_credentials
 
 
-def get_bearer_token(client_id, client_secret):
+_token = None
+_token_expire_time = 0
+
+
+def get_bearer_token():
+    client_id, client_secret = get_moltin_credentials()
     url = 'https://api.moltin.com/oauth/access_token'
     moltin_keys = {
         'client_id': client_id,
@@ -19,11 +23,12 @@ def get_bearer_token(client_id, client_secret):
     return response.json().get('access_token'), token_expire_time
 
 
-def get_actual_token(client_id, client_secret):
+def get_actual_token():
+    client_id, client_secret = get_moltin_credentials()
     global _token
     global _token_expire_time
     if monotonic() > _token_expire_time:
-        _token, _token_expire_time = get_bearer_token(client_id, client_secret)
+        _token, _token_expire_time = get_bearer_token()
     return _token
 
 
@@ -70,7 +75,7 @@ def get_cart_items(chat_id):
 
 def get_product(product_id):
     headers = create_headers()
-    url = os.path.join('https://api.moltin.com/v2/products/', product_id)
+    url = f'https://api.moltin.com/v2/products/{product_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']
@@ -180,5 +185,5 @@ def get_customer(chat_id):
 
 
 def create_headers():
-    access_token = get_actual_token(client_id, client_secret)
+    access_token = get_actual_token()
     return {'Authorization': f'Bearer {access_token}'}
