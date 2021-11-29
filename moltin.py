@@ -1,16 +1,12 @@
 import requests
-
-from time import monotonic
-
-from settings import get_moltin_credentials
+import time
 
 
 _token = None
 _token_expire_time = 0
 
 
-def get_bearer_token():
-    client_id, client_secret = get_moltin_credentials()
+def get_bearer_token(client_id, client_secret):
     url = 'https://api.moltin.com/oauth/access_token'
     moltin_keys = {
         'client_id': client_id,
@@ -19,29 +15,36 @@ def get_bearer_token():
     }
     response = requests.post(url, data=moltin_keys)
     response.raise_for_status()
-    token_expire_time = monotonic() + 3000
-    return response.json().get('access_token'), token_expire_time
+    moltin_responce = response.json()
+
+    token_expire_time = moltin_responce['expires']
+    access_token = moltin_responce['access_token']
+    return access_token, token_expire_time
 
 
-def get_actual_token():
-    client_id, client_secret = get_moltin_credentials()
+def get_actual_token(client_id, client_secret):
     global _token
     global _token_expire_time
-    if monotonic() > _token_expire_time:
-        _token, _token_expire_time = get_bearer_token()
+
+    if time.time() > _token_expire_time:
+        _token, _token_expire_time = get_bearer_token(client_id, client_secret)
     return _token
 
 
-def get_products_list():
-    headers = create_headers()
+def get_products_list(client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = 'https://api.moltin.com/v2/products'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']
 
 
-def add_product_to_moltin_cart(product_id, quantity, chat_id):
-    headers = create_headers()
+def add_product_to_moltin_cart(product_id, quantity, chat_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     headers_for_post = dict(headers)
     headers_for_post['Content-Type'] = 'application/json'
@@ -57,24 +60,30 @@ def add_product_to_moltin_cart(product_id, quantity, chat_id):
     return response.json()
 
 
-def get_cart(chat_id):
-    headers = create_headers()
+def get_cart(chat_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/carts/{chat_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_cart_items(chat_id):
-    headers = create_headers()
+def get_cart_items(chat_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def get_product(product_id):
-    headers = create_headers()
+def get_product(product_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/products/{product_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
@@ -105,8 +114,10 @@ def fetch_cart_items(response):
     return message
 
 
-def create_file(filepath):
-    headers = create_headers()
+def create_file(filepath, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = 'https://api.moltin.com/v2/files'
 
     with open(filepath, 'rb') as file:
@@ -119,49 +130,61 @@ def create_file(filepath):
     return response.json()
 
 
-def get_file_ids():
-    headers = create_headers()
+def get_file_ids(client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = 'https://api.moltin.com/v2/files'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return [description['id'] for description in response.json()['data']]
 
 
-def link_product_with_image(product_id, image_id):
+def link_product_with_image(product_id, image_id, client_id, client_secret):
     url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
-    headers_for_post = create_headers()
-    headers_for_post['Content-Type'] = 'application/json'
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+
     payload = {
         'data': {
             'type': 'main_image',
             'id': image_id,
         },
     }
-    response = requests.post(url, headers=headers_for_post, json=payload)
+    response = requests.post(url, headers=headers, json=payload)
     response.raise_for_status()
     return response.json()
 
 
-def get_image_url(image_id):
-    headers = create_headers()
+def get_image_url(image_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/files/{image_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()['data']['link']['href']
 
 
-def delete_product_from_cart(chat_id, product_id):
-    headers = create_headers()
+def delete_product_from_cart(chat_id, product_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
     url = f'https://api.moltin.com/v2/carts/{chat_id}/items/{product_id}'
     response = requests.delete(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
 
-def create_customer(name, email):
+def create_customer(name, email, client_id, client_secret):
     url = 'https://api.moltin.com/v2/customers'
-    headers_for_post = create_headers()
-    headers_for_post['Content-Type'] = 'application/json'
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
     payload = {
         'data': {
             'type': 'customer',
@@ -169,21 +192,18 @@ def create_customer(name, email):
             'email': email,
         },
     }
-    response = requests.post(url, json=payload, headers=headers_for_post)
+    response = requests.post(url, json=payload, headers=headers)
     if response.status_code == 409:
         return None
     response.raise_for_status()
     return response.json()
 
 
-def get_customer(chat_id):
-    headers = create_headers()
+def get_customer(chat_id, client_id, client_secret):
+    access_token = get_actual_token(client_id, client_secret)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
     url = f'https://api.moltin.com/v2/customers/{chat_id}'
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
-
-
-def create_headers():
-    access_token = get_actual_token()
-    return {'Authorization': f'Bearer {access_token}'}

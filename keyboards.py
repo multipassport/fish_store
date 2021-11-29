@@ -3,7 +3,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_products_reply_markup(context):
-    products = get_products_list()
+    client_id = context.bot_data['client_id']
+    client_secret = context.bot_data['client_secret']
+
+    products = get_products_list(client_id, client_secret)
 
     products_with_ids = [(product['name'], product['id']) for product in products]
     keyboard = [
